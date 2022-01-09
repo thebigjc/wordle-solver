@@ -16,30 +16,30 @@ enum Color {
 
 struct Word {
     set : u32,
-    w: [u8; 5],
+    w: [u32; 5],
 }
 
 impl Word {
     fn new(s : &String) -> Word {
-        let w = s.as_bytes();
+        let w : [u32; 5] = s.as_bytes().iter().map(|x| *x as u32).collect::<Vec<u32>>().try_into().expect("wrong size");
         let mut set : u32 = 0;
-        w.iter().for_each(|x| { set |= 1 << ((x - 'a' as u8) as usize) });
+        w.iter().for_each(|x| { set |= 1 << (x - 'a' as u32) });
 
         Word {
-            w: w.try_into().expect("wrong length"),
-            set: set
+            w,
+            set
         }
     }
 }
 
-fn make_idx(ac: &[u8], bc: &Word) -> usize {
+fn make_idx(ac: &Word, bc: &Word) -> usize {
     let mut idx = 0;
     let mut mul = 1;
 
     for i in 0..5 {
-        idx += if ac[i] == bc.w[i] {
+        idx += if ac.w[i] == bc.w[i] {
             Color::Green as usize
-        } else if bc.set & (1 << ((&ac[i]-'a' as u8) as usize)) != 0 {
+        } else if bc.set & (1 << (&ac.w[i]-'a' as u32)) != 0 {
             Color::Yellow as usize
         } else {
             Color::Grey as usize
@@ -52,7 +52,7 @@ fn make_idx(ac: &[u8], bc: &Word) -> usize {
 const MASK_SIZE : usize = 3 * 3 * 3 * 3 * 3;
 
 fn calc_entropy_for_word(q: &String, word_chars: &Vec<Word>) -> f64 {
-    let qc = q.as_bytes();
+    let qc = Word::new(q);
 
     let mut mask_map : [u8; MASK_SIZE] = [0; MASK_SIZE];
 
