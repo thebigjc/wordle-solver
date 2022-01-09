@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 use bit_set::BitSet;
+use std::convert::TryInto;
 
 fn load_words(f: &str) -> io::Result<Vec<String>> {
     let file = File::open(f)?;
@@ -14,20 +15,20 @@ enum Color {
     Green
 }
 
-struct Word<'a> {
-    w: &'a [u8],
+struct Word {
+    w: [u8; 5],
     set : BitSet,
 }
 
-impl<'a> Word<'a> {
-    fn new(s : &'a String) -> Word<'a> {
+impl Word {
+    fn new(s : &String) -> Word {
         let w = s.as_bytes();
         let mut set = BitSet::new();
         w.iter().for_each(|x| { set.insert((x - 'a' as u8) as usize); });
 
         Word {
-            w,
-            set
+            w: w.try_into().expect("wrong length"),
+            set: set
         }
     }
 }
