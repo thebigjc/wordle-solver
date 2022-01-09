@@ -1,12 +1,7 @@
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 
-enum Color {
-    Grey,
-    Yellow,
-    Green
-}
+
 
 fn load_words(f: &str) -> io::Result<Vec<String>> {
     let file = File::open(f)?;
@@ -14,7 +9,7 @@ fn load_words(f: &str) -> io::Result<Vec<String>> {
     reader.lines().collect()
 }
 
-fn make_mask(ac: &Vec<char>, bc: &Vec<char>, mask: &mut [u8; 5]) {
+/*fn make_mask(ac: &Vec<char>, bc: &Vec<char>, mask: &mut Mask) {
     for i in 0..mask.len() {
         if ac[i] == bc[i] {
             mask[i] = Color::Green as u8;
@@ -24,26 +19,87 @@ fn make_mask(ac: &Vec<char>, bc: &Vec<char>, mask: &mut [u8; 5]) {
             mask[i] = Color::Yellow as u8;
         }
     }
+}*/
+
+#[derive(PartialEq,Eq,Hash,Copy,Clone)]
+enum Color {
+    Grey,
+    Yellow,
+    Green
 }
+
+#[derive(PartialEq,Eq,Hash)]
+struct Mask (Color, Color, Color, Color, Color);
+
+impl Mask {
+    fn index(&self) -> usize {
+        (self.0 as u8 + (self.1 as u8) * 3 + (self.2 as u8 * 3 * 3) + (self.3 as u8 * 3 * 3 * 3) + (self.4 as u8 * 3 * 3 * 3 * 3)) as usize 
+    }
+
+    fn make(ac: &Vec<char>, bc: &Vec<char>) -> Mask {
+        let (a, b, c, d, e);
+
+        if ac[0] == bc[0] {
+            a = Color::Green;
+        } else if bc.contains(&ac[0]) {
+            a = Color::Yellow;
+        } else {
+            a = Color::Grey;
+        }
+
+        if ac[1] == bc[1] {
+            b = Color::Green;
+        } else if bc.contains(&ac[1]) {
+            b = Color::Yellow;
+        } else {
+            b = Color::Grey;
+        }
+
+        if ac[2] == bc[2] {
+            c = Color::Green;
+        } else if bc.contains(&ac[2]) {
+            c = Color::Yellow;
+        } else {
+            c = Color::Grey;
+        }
+
+        if ac[3] == bc[3] {
+            d = Color::Green;
+        } else if bc.contains(&ac[3]) {
+            d = Color::Yellow;
+        } else {
+            d = Color::Grey;
+        }
+
+        if ac[4] == bc[4] {
+            e = Color::Green;
+        } else if bc.contains(&ac[4]) {
+            e = Color::Yellow;
+        } else {
+            e = Color::Grey;
+        }
+
+        Mask (a, b, c, d, e)
+    }
+}
+
+const MASK_SIZE : usize = 3 * 3 * 3 * 3 * 3;
 
 fn calc_entropy_for_word(q: &String, word_chars: &Vec<Vec<char>>) -> f64 {
     let qc: Vec<char> = q.chars().collect();
 
-    let mut mask_map = HashMap::new();
+    let mut mask_map : [u8; MASK_SIZE] = [0; MASK_SIZE];
 
     for wc in word_chars {
-        let mut mask = [Color::Grey as u8, Color::Grey as u8, Color::Grey as u8, Color::Grey as u8, Color::Grey as u8];
-        make_mask(&qc, &wc, &mut mask);
-        let count = mask_map.entry(mask).or_insert(0);
-        *count += 1;
+        let mask = Mask::make(&qc, &wc);
+        mask_map[mask.index()]+= 1;
     }
 
-    let mut entropy = 0.0;
-
-    for (_, count) in mask_map.iter() {
-        let p = *count as f64 / mask_map.len() as f64;
-        entropy += p * p.log2();
-    }
+    let non_zero = mask_map.iter().filter(|x| **x > 0).count() as f64;
+    let entropy : f64 = mask_map.iter().filter(|x| **x > 0).map(|x| { 
+        let p = *x as f64 / non_zero;
+        p * p.log2()
+    }).sum();
 
     -entropy
 }
