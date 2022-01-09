@@ -1,6 +1,5 @@
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
-use bit_set::BitSet;
 use std::convert::TryInto;
 
 fn load_words(f: &str) -> io::Result<Vec<String>> {
@@ -17,14 +16,14 @@ enum Color {
 
 struct Word {
     w: [u8; 5],
-    set : BitSet,
+    set : u32,
 }
 
 impl Word {
     fn new(s : &String) -> Word {
         let w = s.as_bytes();
-        let mut set = BitSet::new();
-        w.iter().for_each(|x| { set.insert((x - 'a' as u8) as usize); });
+        let mut set : u32 = 0;
+        w.iter().for_each(|x| { set |= 1 << ((x - 'a' as u8) as usize) });
 
         Word {
             w: w.try_into().expect("wrong length"),
@@ -40,7 +39,7 @@ fn make_idx(ac: &[u8], bc: &Word) -> usize {
     for i in 0..5 {
         idx += if ac[i] == bc.w[i] {
             Color::Green as usize
-        } else if bc.set.contains((&ac[i]-'a' as u8) as usize) {
+        } else if bc.set & (1 << ((&ac[i]-'a' as u8) as usize)) != 0 {
             Color::Yellow as usize
         } else {
             Color::Grey as usize
