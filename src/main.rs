@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 
 fn load_words() -> io::Result<Vec<String>> {
-    let file = File::open("words3.txt")?;
+    let file = File::open("words.txt")?;
     let reader = BufReader::new(file);
     reader.lines().collect()
 }
@@ -34,20 +34,32 @@ fn is_match(ac: &Vec<char>, bc: &Vec<char>, mask: &[&MatchType; 5]) -> bool {
     return true;
 }
 
+fn make_mask(ac: &Vec<char>, bc: &Vec<char>, mut mask : [MatchType; 5]) {
+    for i in 0..mask.len() {
+        if ac[i] == bc[i] {
+            mask[i] = MatchType::Green;
+            continue;
+        }
+        if bc.contains(&ac[i]) {
+            mask[i] = MatchType::Yellow;
+        }
+    }
+}
+
 fn calc_entropy_for_word(
     q: &String,
-    words: &Vec<String>,
+    word_chars: &Vec<Vec<char>>,
     match_mask: &Vec<[&MatchType; 5]>,
 ) -> f64 {
     let mut entropy = 0.0;
 
     let qc: Vec<char> = q.chars().collect();
 
-    for w in words {
-        let wc: Vec<char> = w.chars().collect();
+//    let mut mask_map = HashMap.new();
 
+    for m in match_mask {
         let mut count = 0;
-        for m in match_mask {
+        for wc in word_chars {
             if is_match(&qc, &wc, m) {
                 count += 1;
             }
@@ -78,17 +90,23 @@ fn get_best_word(words: &Vec<String>) -> (&String, f64) {
         }
     }
 
+    let word_chars: Vec<Vec<char>> = words.iter().map(|x| x.chars().collect()).collect();
+
     for q in words {
-        entropy.insert(q, calc_entropy_for_word(q, words, &match_mask));
+        entropy.insert(q, calc_entropy_for_word(q, &word_chars, &match_mask));
         println!("{} has entropy {}", q, entropy.get(q).unwrap());
     }
 
-    let (s, f) = entropy
-        .iter()
-        .max_by(|x, y| x.1.partial_cmp(y.1).unwrap())
-        .unwrap();
+    let mut sorted_entropy = entropy.iter().collect::<Vec<(&&String, &f64)>>();
 
-    (*s, *f)
+    sorted_entropy.sort_by(|x, y| x.1.partial_cmp(y.1).unwrap());
+
+    for (s, f) in &sorted_entropy {
+        println!("{}: {}", s, f);
+    }
+
+    let (s, f) = sorted_entropy.last().unwrap();
+    (*s, **f)
 }
 
 fn main() -> io::Result<()> {
