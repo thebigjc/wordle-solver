@@ -9,77 +9,32 @@ fn load_words(f: &str) -> io::Result<Vec<String>> {
     reader.lines().collect()
 }
 
-/*fn make_mask(ac: &Vec<char>, bc: &Vec<char>, mask: &mut Mask) {
-    for i in 0..mask.len() {
-        if ac[i] == bc[i] {
-            mask[i] = Color::Green as u8;
-            continue;
-        }
-        if bc.contains(&ac[i]) {
-            mask[i] = Color::Yellow as u8;
-        }
-    }
-}*/
-
-#[derive(PartialEq,Eq,Debug,Copy,Clone)]
 enum Color {
     Grey,
     Yellow,
     Green
 }
 
-#[derive(PartialEq,Eq,Debug)]
-struct Mask (Color, Color, Color, Color, Color);
+struct Mask {
+    idx : usize,
+}
 
 impl Mask {
-    fn index(&self) -> usize {
-        (self.0 as u8 + (self.1 as u8) * 3 + (self.2 as u8 * 3 * 3) + (self.3 as u8 * 3 * 3 * 3) + (self.4 as u8 * 3 * 3 * 3 * 3)) as usize 
-    }
-
     fn make(ac: &[u8], bc: &[u8]) -> Mask {
-        let (a, b, c, d, e);
+        let mut idx = 0;
+        let mut mul = 1;
 
-        if ac[0] == bc[0] {
-            a = Color::Green;
-        } else if bc.contains(&ac[0]) {
-            a = Color::Yellow;
-        } else {
-            a = Color::Grey;
+        for i in 0..5 {
+            idx += if ac[i] == bc[i] {
+                Color::Green as usize
+            } else if bc.contains(&ac[i]) {
+                Color::Yellow as usize
+            } else {
+                Color::Grey as usize
+            } * mul;
+            mul *= 3;
         }
-
-        if ac[1] == bc[1] {
-            b = Color::Green;
-        } else if bc.contains(&ac[1]) {
-            b = Color::Yellow;
-        } else {
-            b = Color::Grey;
-        }
-
-        if ac[2] == bc[2] {
-            c = Color::Green;
-        } else if bc.contains(&ac[2]) {
-            c = Color::Yellow;
-        } else {
-            c = Color::Grey;
-        }
-
-        if ac[3] == bc[3] {
-            d = Color::Green;
-        } else if bc.contains(&ac[3]) {
-            d = Color::Yellow;
-        } else {
-            d = Color::Grey;
-        }
-
-        if ac[4] == bc[4] {
-            e = Color::Green;
-        } else if bc.contains(&ac[4]) {
-            e = Color::Yellow;
-        } else {
-            e = Color::Grey;
-        }
-
-        Mask (a, b, c, d, e)
+        Mask { idx }
     }
 }
 
@@ -92,7 +47,7 @@ fn calc_entropy_for_word(q: &String, word_chars: &Vec<&[u8]>) -> f64 {
 
     for wc in word_chars {
         let mask = Mask::make(&qc, &wc);
-        mask_map[mask.index()]+= 1;
+        mask_map[mask.idx]+= 1;
     }
 
     let non_zero = mask_map.iter().filter(|x| **x > 0).count() as f64;
