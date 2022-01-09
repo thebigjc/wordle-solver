@@ -3,71 +3,40 @@ use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 
 fn load_words() -> io::Result<Vec<String>> {
-    let file = File::open("words.txt")?;
+    let file = File::open("words2.txt")?;
     let reader = BufReader::new(file);
     reader.lines().collect()
 }
 
-#[derive(Debug)]
-enum MatchType {
-    Green,
-    Yellow,
-    Grey,
-}
-
-fn match_iter() -> std::slice::Iter<'static, MatchType> {
-    [MatchType::Green, MatchType::Yellow, MatchType::Grey].iter()
-}
-
-fn is_match(ac: &Vec<char>, bc: &Vec<char>, mask: &[&MatchType; 5]) -> bool {
-    for i in 0..mask.len() {
-        let b = match mask[i] {
-            MatchType::Green => ac[i] == bc[i],
-            MatchType::Yellow => bc.contains(&ac[i]),
-            MatchType::Grey => !bc.contains(&ac[i]),
-        };
-        if !b {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-fn make_mask(ac: &Vec<char>, bc: &Vec<char>, mut mask : [MatchType; 5]) {
+fn make_mask(ac: &Vec<char>, bc: &Vec<char>, mask: &mut [char; 5]) {
     for i in 0..mask.len() {
         if ac[i] == bc[i] {
-            mask[i] = MatchType::Green;
+            mask[i] = 'g';
             continue;
         }
         if bc.contains(&ac[i]) {
-            mask[i] = MatchType::Yellow;
+            mask[i] = 'y';
         }
     }
 }
 
-fn calc_entropy_for_word(
-    q: &String,
-    word_chars: &Vec<Vec<char>>,
-    match_mask: &Vec<[&MatchType; 5]>,
-) -> f64 {
-    let mut entropy = 0.0;
-
+fn calc_entropy_for_word(q: &String, word_chars: &Vec<Vec<char>>) -> f64 {
     let qc: Vec<char> = q.chars().collect();
 
-//    let mut mask_map = HashMap.new();
+    let mut mask_map = HashMap::new();
 
-    for m in match_mask {
-        let mut count = 0;
-        for wc in word_chars {
-            if is_match(&qc, &wc, m) {
-                count += 1;
-            }
-        }
-        if count > 0 {
-            let p = count as f64 / match_mask.len() as f64;
-            entropy += p * p.log2();
-        }
+    for wc in word_chars {
+        let mut mask = ['r', 'r', 'r', 'r', 'r'];
+        make_mask(&qc, &wc, &mut mask);
+        let count = mask_map.entry(mask).or_insert(0);
+        *count += 1;
+    }
+
+    let mut entropy = 0.0;
+
+    for (_, count) in mask_map.iter() {
+        let p = *count as f64 / mask_map.len() as f64;
+        entropy += p * p.log2();
     }
 
     -entropy
@@ -76,24 +45,10 @@ fn calc_entropy_for_word(
 fn get_best_word(words: &Vec<String>) -> (&String, f64) {
     let mut entropy = HashMap::new();
 
-    let mut match_mask: Vec<[&MatchType; 5]> = Vec::new();
-    for a in match_iter() {
-        for b in match_iter() {
-            for c in match_iter() {
-                for d in match_iter() {
-                    for e in match_iter() {
-                        let mask = [a, b, c, d, e];
-                        match_mask.push(mask);
-                    }
-                }
-            }
-        }
-    }
-
     let word_chars: Vec<Vec<char>> = words.iter().map(|x| x.chars().collect()).collect();
 
     for q in words {
-        entropy.insert(q, calc_entropy_for_word(q, &word_chars, &match_mask));
+        entropy.insert(q, calc_entropy_for_word(q, &word_chars));
         println!("{} has entropy {}", q, entropy.get(q).unwrap());
     }
 
@@ -126,33 +81,22 @@ mod tests {
 
     #[test]
     fn test_match() {
-        assert_eq!(
-            is_match(
-                &"rebut".to_string().chars().collect(),
-                &"rebut".to_string().chars().collect(),
-                &[
-                    &MatchType::Green,
-                    &MatchType::Green,
-                    &MatchType::Green,
-                    &MatchType::Green,
-                    &MatchType::Green
-                ]
-            ),
-            true
+        let mut mask = ['r', 'r', 'r', 'r', 'r'];
+        make_mask(
+            &"rebut".to_string().chars().collect(),
+            &"rebut".to_string().chars().collect(),
+            &mut mask,
         );
-        assert_eq!(
-            is_match(
-                &"rebut".to_string().chars().collect(),
-                &"butch".to_string().chars().collect(),
-                &[
-                    &MatchType::Grey,
-                    &MatchType::Grey,
-                    &MatchType::Yellow,
-                    &MatchType::Green,
-                    &MatchType::Yellow
-                ]
-            ),
-            false
+
+        assert_eq!(mask, ['g', 'g', 'g', 'g', 'g']);
+
+        let mut mask2 = ['r', 'r', 'r', 'r', 'r'];
+        make_mask(
+            &"rebut".to_string().chars().collect(),
+            &"butch".to_string().chars().collect(),
+            &mut mask2,
         );
+
+        assert_eq!(mask2, ['r', 'r', 'y', 'y', 'y']);
     }
 }
