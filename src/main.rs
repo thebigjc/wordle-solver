@@ -21,14 +21,14 @@ fn load_words(f: &str) -> io::Result<Vec<String>> {
     }
 }*/
 
-#[derive(PartialEq,Eq,Hash,Copy,Clone)]
+#[derive(PartialEq,Eq,Debug,Copy,Clone)]
 enum Color {
     Grey,
     Yellow,
     Green
 }
 
-#[derive(PartialEq,Eq,Hash)]
+#[derive(PartialEq,Eq,Debug)]
 struct Mask (Color, Color, Color, Color, Color);
 
 impl Mask {
@@ -36,7 +36,7 @@ impl Mask {
         (self.0 as u8 + (self.1 as u8) * 3 + (self.2 as u8 * 3 * 3) + (self.3 as u8 * 3 * 3 * 3) + (self.4 as u8 * 3 * 3 * 3 * 3)) as usize 
     }
 
-    fn make(ac: &Vec<char>, bc: &Vec<char>) -> Mask {
+    fn make(ac: &[u8], bc: &[u8]) -> Mask {
         let (a, b, c, d, e);
 
         if ac[0] == bc[0] {
@@ -85,8 +85,8 @@ impl Mask {
 
 const MASK_SIZE : usize = 3 * 3 * 3 * 3 * 3;
 
-fn calc_entropy_for_word(q: &String, word_chars: &Vec<Vec<char>>) -> f64 {
-    let qc: Vec<char> = q.chars().collect();
+fn calc_entropy_for_word(q: &String, word_chars: &Vec<&[u8]>) -> f64 {
+    let qc = q.as_bytes();
 
     let mut mask_map : [u8; MASK_SIZE] = [0; MASK_SIZE];
 
@@ -107,7 +107,7 @@ fn calc_entropy_for_word(q: &String, word_chars: &Vec<Vec<char>>) -> f64 {
 fn get_best_word(words: &Vec<String>, legal_words: &Vec<String>) -> (String, f64) {
     let mut entropy = Vec::new();
 
-    let word_chars: Vec<Vec<char>> = words.iter().map(|x| x.chars().collect()).collect();
+    let word_chars: Vec<&[u8]> = words.iter().map(|x| x.as_bytes()).collect();
 
     for q in legal_words.iter() {
         let word_entropy = calc_entropy_for_word(q, &word_chars);
@@ -142,22 +142,18 @@ mod tests {
 
     #[test]
     fn test_match() {
-        let mut mask = [Color::Grey as u8, Color::Grey as u8, Color::Grey as u8, Color::Grey as u8, Color::Grey as u8];
-        make_mask(
-            &"rebut".to_string().chars().collect(),
-            &"rebut".to_string().chars().collect(),
-            &mut mask,
+        let mask = Mask::make(
+            "rebut".as_bytes(),
+            "rebut".as_bytes()
         );
 
-        assert_eq!(mask, [Color::Green as u8, Color::Green as u8, Color::Green as u8, Color::Green as u8, Color::Green as u8]);
+        assert_eq!(mask, Mask(Color::Green, Color::Green, Color::Green, Color::Green, Color::Green));
 
-        let mut mask2 = [Color::Grey as u8, Color::Grey as u8, Color::Grey as u8, Color::Grey as u8, Color::Grey as u8];
-        make_mask(
-            &"rebut".to_string().chars().collect(),
-            &"butch".to_string().chars().collect(),
-            &mut mask2,
+        let mask2 = Mask::make(
+            &"rebut".as_bytes(),
+            &"butch".as_bytes(),
         );
 
-        assert_eq!(mask2, [Color::Grey as u8, Color::Grey as u8, Color::Yellow as u8, Color::Yellow as u8, Color::Yellow as u8]);
+        assert_eq!(mask2, Mask(Color::Grey, Color::Grey, Color::Yellow, Color::Yellow, Color::Yellow));
     }
 }
