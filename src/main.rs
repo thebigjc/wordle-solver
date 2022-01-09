@@ -1,3 +1,4 @@
+use rayon::prelude::*;
 use std::convert::TryInto;
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
@@ -66,7 +67,7 @@ fn calc_entropy_for_word(q: &String, word_chars: &Vec<Word>) -> f64 {
 
     let non_zero = word_chars.len() as f64;
     let entropy: f64 = mask_map
-        .iter()
+        .par_iter()
         .map(|x| {
             if *x > 0 {
                 let p = *x as f64 / non_zero;
@@ -81,23 +82,15 @@ fn calc_entropy_for_word(q: &String, word_chars: &Vec<Word>) -> f64 {
 }
 
 fn get_best_word(words: &Vec<String>, legal_words: &Vec<String>) -> (String, f64) {
-    let mut entropy = Vec::new();
-
     let word_chars: Vec<Word> = words.iter().map(|x| Word::new(x)).collect();
 
-    for q in legal_words.iter() {
-        let word_entropy = calc_entropy_for_word(q, &word_chars);
-        entropy.push((q, word_entropy));
-        //println!("{} has entropy {}", q, word_entropy);
-    }
+    let entropy: Vec<(&String, f64)> = legal_words
+        .par_iter()
+        .map(|x| (x, calc_entropy_for_word(x, &word_chars)))
+        .collect();
 
-    entropy.sort_by(|x, y| x.1.partial_cmp(&y.1).unwrap());
+    let (s, f) = entropy.par_iter().max_by(|x, y| x.1.partial_cmp(&y.1).unwrap()).unwrap();
 
-    for (s, f) in &entropy {
-        println!("{}: {}", s, f);
-    }
-
-    let (s, f) = entropy.last().unwrap();
     (s.to_string(), *f)
 }
 
