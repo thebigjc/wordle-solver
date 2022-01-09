@@ -1,6 +1,6 @@
+use std::convert::TryInto;
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
-use std::convert::TryInto;
 
 fn load_words(f: &str) -> io::Result<Vec<String>> {
     let file = File::open(f)?;
@@ -11,24 +11,27 @@ fn load_words(f: &str) -> io::Result<Vec<String>> {
 enum Color {
     Grey,
     Yellow,
-    Green
+    Green,
 }
 
 struct Word {
-    set : u32,
+    set: u32,
     w: [u32; 5],
 }
 
 impl Word {
-    fn new(s : &String) -> Word {
-        let w : [u32; 5] = s.as_bytes().iter().map(|x| *x as u32).collect::<Vec<u32>>().try_into().expect("wrong size");
-        let mut set : u32 = 0;
-        w.iter().for_each(|x| { set |= 1 << (x - 'a' as u32) });
+    fn new(s: &String) -> Word {
+        let w: [u32; 5] = s
+            .as_bytes()
+            .iter()
+            .map(|x| *x as u32)
+            .collect::<Vec<u32>>()
+            .try_into()
+            .expect("wrong size");
+        let mut set: u32 = 0;
+        w.iter().for_each(|x| set |= 1 << (x - 'a' as u32));
 
-        Word {
-            w,
-            set
-        }
+        Word { w, set }
     }
 }
 
@@ -39,7 +42,7 @@ fn make_idx(ac: &Word, bc: &Word) -> usize {
     for i in 0..5 {
         idx += if ac.w[i] == bc.w[i] {
             Color::Green as usize
-        } else if bc.set & (1 << (&ac.w[i]-'a' as u32)) != 0 {
+        } else if bc.set & (1 << (&ac.w[i] - 'a' as u32)) != 0 {
             Color::Yellow as usize
         } else {
             Color::Grey as usize
@@ -49,23 +52,30 @@ fn make_idx(ac: &Word, bc: &Word) -> usize {
     idx
 }
 
-const MASK_SIZE : usize = 3 * 3 * 3 * 3 * 3;
+const MASK_SIZE: usize = 3 * 3 * 3 * 3 * 3;
 
 fn calc_entropy_for_word(q: &String, word_chars: &Vec<Word>) -> f64 {
     let qc = Word::new(q);
 
-    let mut mask_map : [u8; MASK_SIZE] = [0; MASK_SIZE];
+    let mut mask_map: [usize; MASK_SIZE] = [0; MASK_SIZE];
 
     for wc in word_chars {
         let idx = make_idx(&qc, &wc);
-        mask_map[idx]+= 1;
+        mask_map[idx] += 1;
     }
 
-    let non_zero = mask_map.iter().filter(|x| **x > 0).count() as f64;
-    let entropy : f64 = mask_map.iter().filter(|x| **x > 0).map(|x| { 
-        let p = *x as f64 / non_zero;
-        p * p.log2()
-    }).sum();
+    let non_zero = word_chars.len() as f64;
+    let entropy: f64 = mask_map
+        .iter()
+        .map(|x| {
+            if *x > 0 {
+                let p = *x as f64 / non_zero;
+                p * p.log2()
+            } else {
+                0.0
+            }
+        })
+        .sum();
 
     -entropy
 }
@@ -83,9 +93,9 @@ fn get_best_word(words: &Vec<String>, legal_words: &Vec<String>) -> (String, f64
 
     entropy.sort_by(|x, y| x.1.partial_cmp(&y.1).unwrap());
 
-    /*for (s, f) in &entropy {
+    for (s, f) in &entropy {
         println!("{}: {}", s, f);
-    }*/
+    }
 
     let (s, f) = entropy.last().unwrap();
     (s.to_string(), *f)
@@ -108,18 +118,30 @@ mod tests {
 
     #[test]
     fn test_match() {
-        let mask = Mask::make(
-            "rebut".as_bytes(),
-            "rebut".as_bytes()
+        let mask = Mask::make("rebut".as_bytes(), "rebut".as_bytes());
+
+        assert_eq!(
+            mask,
+            Mask(
+                Color::Green,
+                Color::Green,
+                Color::Green,
+                Color::Green,
+                Color::Green
+            )
         );
 
-        assert_eq!(mask, Mask(Color::Green, Color::Green, Color::Green, Color::Green, Color::Green));
+        let mask2 = Mask::make(&"rebut".as_bytes(), &"butch".as_bytes());
 
-        let mask2 = Mask::make(
-            &"rebut".as_bytes(),
-            &"butch".as_bytes(),
+        assert_eq!(
+            mask2,
+            Mask(
+                Color::Grey,
+                Color::Grey,
+                Color::Yellow,
+                Color::Yellow,
+                Color::Yellow
+            )
         );
-
-        assert_eq!(mask2, Mask(Color::Grey, Color::Grey, Color::Yellow, Color::Yellow, Color::Yellow));
     }
 }
