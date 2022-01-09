@@ -15,8 +15,8 @@ enum Color {
 }
 
 struct Word {
-    w: [u8; 5],
     set : u32,
+    w: [u8; 5],
 }
 
 impl Word {
