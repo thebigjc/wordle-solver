@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
 
-fn load_words() -> io::Result<Vec<String>> {
-    let file = File::open("words2.txt")?;
+fn load_words(f: &str) -> io::Result<Vec<String>> {
+    let file = File::open(f)?;
     let reader = BufReader::new(file);
     reader.lines().collect()
 }
@@ -42,12 +42,12 @@ fn calc_entropy_for_word(q: &String, word_chars: &Vec<Vec<char>>) -> f64 {
     -entropy
 }
 
-fn get_best_word(words: &Vec<String>) -> (&String, f64) {
+fn get_best_word(words: &Vec<String>, legal_words: &Vec<String>) -> (String, f64) {
     let mut entropy = HashMap::new();
 
     let word_chars: Vec<Vec<char>> = words.iter().map(|x| x.chars().collect()).collect();
 
-    for q in words {
+    for q in words.iter().chain(legal_words.iter()) {
         entropy.insert(q, calc_entropy_for_word(q, &word_chars));
         println!("{} has entropy {}", q, entropy.get(q).unwrap());
     }
@@ -61,14 +61,15 @@ fn get_best_word(words: &Vec<String>) -> (&String, f64) {
     }
 
     let (s, f) = sorted_entropy.last().unwrap();
-    (*s, **f)
+    (s.to_string(), **f)
 }
 
 fn main() -> io::Result<()> {
-    let words = load_words()?;
+    let words = load_words("words2.txt")?;
+    let legal_words = load_words("legal.txt")?;
 
     println!("{}", words.len());
-    let (first_guess, entrop) = get_best_word(&words);
+    let (first_guess, entrop) = get_best_word(&words, &legal_words);
     println!("let's guess: {} which has entropy: {}", first_guess, entrop);
 
     Ok(())
