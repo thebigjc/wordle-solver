@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::io::{self, prelude::*, BufReader};
-
-
+use bit_set::BitSet;
 
 fn load_words(f: &str) -> io::Result<Vec<String>> {
     let file = File::open(f)?;
@@ -15,39 +14,51 @@ enum Color {
     Green
 }
 
-struct Mask {
-    idx : usize,
+struct Word<'a> {
+    w: &'a [u8],
+    set : BitSet,
 }
 
-impl Mask {
-    fn make(ac: &[u8], bc: &[u8]) -> Mask {
-        let mut idx = 0;
-        let mut mul = 1;
+impl<'a> Word<'a> {
+    fn new(s : &'a String) -> Word<'a> {
+        let w = s.as_bytes();
+        let mut set = BitSet::new();
+        w.iter().for_each(|x| { set.insert((x - 'a' as u8) as usize); });
 
-        for i in 0..5 {
-            idx += if ac[i] == bc[i] {
-                Color::Green as usize
-            } else if bc.contains(&ac[i]) {
-                Color::Yellow as usize
-            } else {
-                Color::Grey as usize
-            } * mul;
-            mul *= 3;
+        Word {
+            w,
+            set
         }
-        Mask { idx }
     }
+}
+
+fn make_idx(ac: &[u8], bc: &Word) -> usize {
+    let mut idx = 0;
+    let mut mul = 1;
+
+    for i in 0..5 {
+        idx += if ac[i] == bc.w[i] {
+            Color::Green as usize
+        } else if bc.set.contains((&ac[i]-'a' as u8) as usize) {
+            Color::Yellow as usize
+        } else {
+            Color::Grey as usize
+        } * mul;
+        mul *= 3;
+    }
+    idx
 }
 
 const MASK_SIZE : usize = 3 * 3 * 3 * 3 * 3;
 
-fn calc_entropy_for_word(q: &String, word_chars: &Vec<&[u8]>) -> f64 {
+fn calc_entropy_for_word(q: &String, word_chars: &Vec<Word>) -> f64 {
     let qc = q.as_bytes();
 
     let mut mask_map : [u8; MASK_SIZE] = [0; MASK_SIZE];
 
     for wc in word_chars {
-        let mask = Mask::make(&qc, &wc);
-        mask_map[mask.idx]+= 1;
+        let idx = make_idx(&qc, &wc);
+        mask_map[idx]+= 1;
     }
 
     let non_zero = mask_map.iter().filter(|x| **x > 0).count() as f64;
@@ -62,7 +73,7 @@ fn calc_entropy_for_word(q: &String, word_chars: &Vec<&[u8]>) -> f64 {
 fn get_best_word(words: &Vec<String>, legal_words: &Vec<String>) -> (String, f64) {
     let mut entropy = Vec::new();
 
-    let word_chars: Vec<&[u8]> = words.iter().map(|x| x.as_bytes()).collect();
+    let word_chars: Vec<Word> = words.iter().map(|x| Word::new(x)).collect();
 
     for q in legal_words.iter() {
         let word_entropy = calc_entropy_for_word(q, &word_chars);
