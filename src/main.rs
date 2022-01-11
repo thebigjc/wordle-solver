@@ -65,12 +65,13 @@ fn calc_entropy_for_word(q: &String, word_chars: &Vec<Word>) -> f64 {
         mask_map[idx] += 1;
     }
 
-    let non_zero = word_chars.len() as f64;
+    let words = word_chars.len() as f64;
+    
     let entropy: f64 = mask_map
-        .par_iter()
+        .iter()
         .map(|x| {
             if *x > 0 {
-                let p = *x as f64 / non_zero;
+                let p = *x as f64 / words;
                 p * p.log2()
             } else {
                 0.0
@@ -82,7 +83,7 @@ fn calc_entropy_for_word(q: &String, word_chars: &Vec<Word>) -> f64 {
 }
 
 fn get_best_word(words: &Vec<String>, legal_words: &Vec<String>) -> (String, f64) {
-    let word_chars: Vec<Word> = words.iter().map(|x| Word::new(x)).collect();
+    let word_chars: Vec<Word> = words.par_iter().map(|x| Word::new(x)).collect();
 
     let entropy: Vec<(&String, f64)> = legal_words
         .par_iter()
