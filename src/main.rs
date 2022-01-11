@@ -21,7 +21,7 @@ struct Word {
 }
 
 impl Word {
-    fn new(s: &String) -> Word {
+    fn new(s: &str) -> Word {
         let w: [u32; 5] = s
             .as_bytes()
             .iter()
@@ -127,7 +127,7 @@ mod tests {
 
     #[test]
     fn test_match() {
-        let mask = make_idx(&Word::new(&String::from("rebut")), &Word::new(&String::from("rebut")));
+        let mask = make_idx(&Word::new("rebut"), &Word::new("rebut"));
 
         assert_eq!(
             mask,
@@ -138,7 +138,7 @@ mod tests {
                 Color::Green])
             );
 
-        let mask2 = make_idx(&Word::new(&String::from("rebut")), &Word::new(&String::from("butch")));
+        let mask2 = make_idx(&Word::new("rebut"), &Word::new("butch"));
 
         assert_eq!(
             mask2,
