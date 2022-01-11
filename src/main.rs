@@ -113,31 +113,41 @@ fn main() -> io::Result<()> {
 mod tests {
     use super::*;
 
+    fn test_idx (colors: [Color; 5]) -> usize {
+        let mut idx = 0;
+        let mut mul = 1;
+
+        for i in colors {
+            idx += i as usize * mul;
+            mul *= 3;
+        };
+
+        idx
+    }
+
     #[test]
     fn test_match() {
-        let mask = Mask::make("rebut".as_bytes(), "rebut".as_bytes());
+        let mask = make_idx(&Word::new(&String::from("rebut")), &Word::new(&String::from("rebut")));
 
         assert_eq!(
             mask,
-            Mask(
+            test_idx([Color::Green,
                 Color::Green,
                 Color::Green,
                 Color::Green,
-                Color::Green,
-                Color::Green
-            )
-        );
+                Color::Green])
+            );
 
-        let mask2 = Mask::make(&"rebut".as_bytes(), &"butch".as_bytes());
+        let mask2 = make_idx(&Word::new(&String::from("rebut")), &Word::new(&String::from("butch")));
 
         assert_eq!(
             mask2,
-            Mask(
-                Color::Grey,
+            test_idx(
+                [Color::Grey,
                 Color::Grey,
                 Color::Yellow,
                 Color::Yellow,
-                Color::Yellow
+                Color::Yellow]
             )
         );
     }
