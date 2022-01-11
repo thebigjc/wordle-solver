@@ -12,3 +12,13 @@ There is no setup for incorporating feedback and making additional guesses. In o
 
 What isn't clear is when to guess a word that adds information that can't be the right answer, or guessing a word that could be the right answer but adds less information. That remains an open proble IMHO that I'd love some thoughts on.
 
+## Data 
+
+legal.txt - all the legal words extracted from the wordle web app
+words.txt - all the guessable words extracted from the wordle web app
+
+## How to run it
+
+copy words.txt to words2.txt
+
+`cargo run --release`
