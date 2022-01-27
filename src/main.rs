@@ -17,7 +17,8 @@ enum Color {
 
 struct Word {
     w: [usize; 5],
-    set: [usize; 26]
+    set: [usize; 26],
+    s: String,
 }
 
 impl Word {
@@ -39,28 +40,45 @@ impl Word {
             }
         }
 
-        Word { w, set }
+        Word {
+            w: w,
+            set: set,
+            s: s.to_string(),
+        }
     }
 }
 
 fn make_idx(ac: &Word, bc: &Word) -> usize {
     let mut idx = 0;
-    let mut mul = 1;
 
     let mut b_set = bc.set.clone();
+
+    let mut mul = 1;
 
     for i in 0..5 {
         idx += if ac.w[i] == bc.w[i] {
             b_set[ac.w[i] - 'a' as usize] -= 1;
             Color::Green as usize
-        } else if b_set[ac.w[i] - 'a' as usize] > 0 {
+        } else {
+            Color::Grey as usize
+        } * mul;
+
+        mul *= 3;
+    }
+
+    mul = 1;
+
+    for i in 0..5 {
+        idx += if ac.w[i] != bc.w[i] && b_set[ac.w[i] - 'a' as usize] > 0 {
             b_set[ac.w[i] - 'a' as usize] -= 1;
             Color::Yellow as usize
         } else {
             Color::Grey as usize
         } * mul;
+
         mul *= 3;
     }
+
     idx
 }
 
@@ -73,6 +91,9 @@ fn calc_entropy_for_word(q: &String, word_chars: &Vec<Word>) -> f64 {
 
     for wc in word_chars {
         let idx = make_idx(&qc, &wc);
+        if idx > 243 {
+            println!("{} - {}", q, wc.s);
+        }
         mask_map[idx] += 1;
     }
 
@@ -113,7 +134,6 @@ fn main() -> io::Result<()> {
     let words = load_words("words2.txt")?;
     let legal_words = load_words("legal.txt")?;
 
-    //println!("{}", words.len());
     let (first_guess, entrop) = get_best_word(&words, &legal_words);
     println!("let's guess: {} which has entropy: {}", first_guess, entrop);
 
@@ -196,6 +216,38 @@ mod tests {
                 Color::Green,
                 Color::Green,
                 Color::Grey
+            ])
+        );
+    }
+
+    #[test]
+    fn test_overflow() {
+        let mask4 = make_idx(&Word::new("malax"), &Word::new("knead"));
+
+        assert_eq!(
+            mask4,
+            test_idx([
+                Color::Grey,
+                Color::Grey,
+                Color::Grey,
+                Color::Green,
+                Color::Grey
+            ])
+        );
+    }
+
+    #[test]
+    fn test_index_oob() {
+        let mask4 = make_idx(&Word::new("tepoy"), &Word::new("coyly"));
+
+        assert_eq!(
+            mask4,
+            test_idx([
+                Color::Grey,
+                Color::Grey,
+                Color::Grey,
+                Color::Yellow,
+                Color::Green
             ])
         );
     }
