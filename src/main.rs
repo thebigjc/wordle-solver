@@ -16,21 +16,28 @@ enum Color {
 }
 
 struct Word {
-    set: u32,
-    w: [u32; 5],
+    w: [usize; 5],
+    set: [usize; 26]
 }
 
 impl Word {
     fn new(s: &str) -> Word {
-        let w: [u32; 5] = s
+        let w: [usize; 5] = s
             .as_bytes()
             .iter()
-            .map(|x| *x as u32)
-            .collect::<Vec<u32>>()
+            .map(|x| *x as usize)
+            .collect::<Vec<usize>>()
             .try_into()
             .expect("wrong size");
-        let mut set: u32 = 0;
-        w.iter().for_each(|x| set |= 1 << (x - 'a' as u32));
+
+        let mut set: [usize; 26] = [0; 26];
+
+        for i in 0..26 {
+            let c = 'a' as usize + i;
+            if s.contains(c as u8 as char) {
+                set[i] += 1;
+            }
+        }
 
         Word { w, set }
     }
@@ -40,10 +47,14 @@ fn make_idx(ac: &Word, bc: &Word) -> usize {
     let mut idx = 0;
     let mut mul = 1;
 
+    let mut b_set = bc.set.clone();
+
     for i in 0..5 {
         idx += if ac.w[i] == bc.w[i] {
+            b_set[ac.w[i] - 'a' as usize] -= 1;
             Color::Green as usize
-        } else if bc.set & (1 << (&ac.w[i] - 'a' as u32)) != 0 {
+        } else if b_set[ac.w[i] - 'a' as usize] > 0 {
+            b_set[ac.w[i] - 'a' as usize] -= 1;
             Color::Yellow as usize
         } else {
             Color::Grey as usize
@@ -113,42 +124,63 @@ fn main() -> io::Result<()> {
 mod tests {
     use super::*;
 
-    fn test_idx (colors: [Color; 5]) -> usize {
+    fn test_idx(colors: [Color; 5]) -> usize {
         let mut idx = 0;
         let mut mul = 1;
 
         for i in colors {
             idx += i as usize * mul;
             mul *= 3;
-        };
+        }
 
         idx
     }
 
     #[test]
-    fn test_match() {
+    fn test_green() {
         let mask = make_idx(&Word::new("rebut"), &Word::new("rebut"));
 
         assert_eq!(
             mask,
-            test_idx([Color::Green,
+            test_idx([
                 Color::Green,
                 Color::Green,
                 Color::Green,
-                Color::Green])
-            );
+                Color::Green,
+                Color::Green
+            ])
+        );
+    }
 
+    #[test]
+    fn test_two_grey_three_yellow() {
         let mask2 = make_idx(&Word::new("rebut"), &Word::new("butch"));
 
         assert_eq!(
             mask2,
-            test_idx(
-                [Color::Grey,
+            test_idx([
+                Color::Grey,
                 Color::Grey,
                 Color::Yellow,
                 Color::Yellow,
-                Color::Yellow]
-            )
+                Color::Yellow
+            ])
+        );
+    }
+
+    #[test]
+    fn test_double_letter() {
+        let mask3 = make_idx(&Word::new("blood"), &Word::new("proxy"));
+
+        assert_eq!(
+            mask3,
+            test_idx([
+                Color::Grey,
+                Color::Grey,
+                Color::Green,
+                Color::Grey,
+                Color::Grey
+            ])
         );
     }
 }
