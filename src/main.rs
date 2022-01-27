@@ -32,10 +32,10 @@ impl Word {
 
         let mut set: [usize; 26] = [0; 26];
 
-        for i in 0..26 {
-            let c = 'a' as usize + i;
+        for i in 0..5 {
+            let c = w[i];
             if s.contains(c as u8 as char) {
-                set[i] += 1;
+                set[c - 'a' as usize] += 1;
             }
         }
 
@@ -179,6 +179,22 @@ mod tests {
                 Color::Grey,
                 Color::Green,
                 Color::Grey,
+                Color::Grey
+            ])
+        );
+    }
+
+    #[test]
+    fn test_double_letter2() {
+        let mask4 = make_idx(&Word::new("babes"), &Word::new("abbey"));
+
+        assert_eq!(
+            mask4,
+            test_idx([
+                Color::Yellow,
+                Color::Yellow,
+                Color::Green,
+                Color::Green,
                 Color::Grey
             ])
         );
