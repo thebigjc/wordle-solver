@@ -29,7 +29,7 @@ impl Word {
             .map(|x| *x as usize)
             .collect::<Vec<usize>>()
             .try_into()
-            .expect("wrong size");
+            .unwrap_or_else(|_| panic!("wrong size: {}", s));
 
         let mut set: [usize; 26] = [0; 26];
 
@@ -84,50 +84,112 @@ fn make_idx(ac: &Word, bc: &Word) -> usize {
 
 const MASK_SIZE: usize = 3 * 3 * 3 * 3 * 3;
 
-fn calc_entropy_for_word(q: &String, word_chars: &Vec<Word>) -> f64 {
-    let qc = Word::new(q);
+fn calc_entropy_for_words(
+    legal_words: &Vec<&Word>,
+    word_chars: &Vec<&Word>,
+    depth: usize,
+) -> Vec<(String, f64)> {
+    legal_words
+        .par_iter()
+        .map(|x| {
+            (
+                x.s.clone(),
+                calc_entropy_for_word(x, legal_words, word_chars, depth),
+            )
+        })
+        .collect()
+}
 
-    let mut mask_map: [usize; MASK_SIZE] = [0; MASK_SIZE];
+fn calc_entropy_for_word(
+    q: &Word,
+    legal_words: &Vec<&Word>,
+    word_chars: &Vec<&Word>,
+    depth: usize,
+) -> f64 {
+    if depth > 0 {
+        println!("Depth search starting from {}", q.s);
+    }
+    let mut mask_map: [Vec<&Word>; MASK_SIZE] = [(); MASK_SIZE].map(|_| Vec::<&Word>::new());
 
-    for wc in word_chars {
-        let idx = make_idx(&qc, &wc);
-        if idx > 243 {
-            println!("{} - {}", q, wc.s);
-        }
-        mask_map[idx] += 1;
+    for w in word_chars {
+        let idx = make_idx(&q, &w);
+        mask_map[idx].push(w);
     }
 
     let words = word_chars.len() as f64;
 
-    let entropy: f64 = mask_map
+    let legal_without: Vec<&Word> = legal_words
         .iter()
+        .filter(|x| x.s != q.s)
+        .map(|x| *x)
+        .collect();
+
+    let entropy: f64 = mask_map
+        .par_iter()
         .map(|x| {
-            if *x > 0 {
-                let p = *x as f64 / words;
-                p * p.log2()
+            let l = x.len();
+            if l > 0 {
+                let p = l as f64 / words;
+                let r = p * p.log2();
+                if l < word_chars.len() && l > 1 && depth > 0 {
+                    let deep_entropy = calc_entropy_for_words(&legal_without, x, depth - 1);
+                    let mut sums = 0.0;
+                    let mut c = 0.0;
+                    for (_, f) in deep_entropy.iter() {
+                        sums += f;
+                        c += 1.0;
+                    }
+                    r - (sums / c)
+                } else {
+                    r
+                }
             } else {
                 0.0
             }
         })
-        .sum();
+        .sum::<f64>()
+        * -1.0;
 
-    -entropy
+    if depth > 0 {
+        println!("{} - {} : {}", depth, entropy, q.s);
+    }
+
+    entropy
 }
 
 fn get_best_word(words: &Vec<String>, legal_words: &Vec<String>) -> (String, f64) {
-    let word_chars: Vec<Word> = words.par_iter().map(|x| Word::new(x)).collect();
+    let word_chars: Vec<Word> = words.iter().map(|x| Word::new(x)).collect();
+    let legal_chars: Vec<Word> = legal_words.iter().map(|x| Word::new(x)).collect();
 
-    let entropy: Vec<(&String, f64)> = legal_words
-        .par_iter()
-        .map(|x| (x, calc_entropy_for_word(x, &word_chars)))
+    let word_chars_ref: Vec<&Word> = word_chars.iter().map(|x| x).collect();
+    let legal_chars_ref: Vec<&Word> = legal_chars.iter().map(|x| x).collect();
+
+    let mut legal_entropy = calc_entropy_for_words(&legal_chars_ref, &word_chars_ref, 0);
+
+    legal_entropy.sort_by(|x, y| y.1.partial_cmp(&x.1).unwrap());
+
+    let top10_chars: Vec<Word> = legal_entropy
+        .iter()
+        .take(10)
+        .map(|(s, _)| Word::new(s))
+        .collect();
+    let top10_chars_ref: Vec<&Word> = top10_chars.iter().map(|x| x).collect();
+
+    let mut deep_entropy: Vec<(String, f64)> = top10_chars_ref
+        .iter()
+        .map(|x| {
+            (
+                x.s.clone(),
+                calc_entropy_for_word(x, &legal_chars_ref, &word_chars_ref, 1),
+            )
+        })
         .collect();
 
-    let (s, f) = entropy
-        .par_iter()
-        .max_by(|x, y| x.1.partial_cmp(&y.1).unwrap())
-        .unwrap();
+    deep_entropy.sort_by(|x, y| y.1.partial_cmp(&x.1).unwrap());
 
-    (s.to_string(), *f)
+    let (s, f) = deep_entropy.first().unwrap();
+
+    (s.clone(), *f)
 }
 
 fn main() -> io::Result<()> {
